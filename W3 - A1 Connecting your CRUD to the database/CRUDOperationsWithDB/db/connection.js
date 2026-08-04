@@ -44,15 +44,15 @@ class DatabaseConnection {
             );
         }
     }
-get run() {
-    return (sql, params = []) => new Promise((resolve, reject) => {
-        this.db.run(sql, params, function(err) {
-            if (err) reject(err);
-            else resolve(this); // 'this' = statement object with lastID, changes
-        });
-    });
-}
-get get() { return promisify(this.db.get).bind(this.db); }
+        get run() {
+            return (sql, params = []) => new Promise((resolve, reject) => {
+                this.db.run(sql, params, function(err) {
+                    if (err) reject(err);
+                    else resolve(this); // 'this' = statement object with lastID, changes
+                });
+            });
+        }
+    get get() { return promisify(this.db.get).bind(this.db); }
     get all() { return promisify(this.db.all).bind(this.db); }
 
     close() {
