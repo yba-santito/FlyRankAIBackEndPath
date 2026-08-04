@@ -224,12 +224,90 @@ cd "W3 - A1 Connecting your CRUD to the database"
 npm install
 
 # Start server
+npm start
+# or directly:
 node CRUDOperationsWithDB/SetUp.js
 ```
 
 Server runs at `http://localhost:3333`
 - API: `http://localhost:3333/tasks`
 - Swagger Docs: `http://localhost:3333/docs`
+
+## Running Tests
+
+```bash
+# Run all tests
+npm test
+
+# Run tests with coverage
+npm test -- --coverage
+
+# Run tests in watch mode (for development)
+npm test -- --watch
+```
+
+**Test script in package.json:**
+```json
+{
+  "scripts": {
+    "test": "jest --testTimeout=10000",
+    "start": "node CRUDOperationsWithDB/SetUp.js"
+  }
+}
+```
+
+## CRUD Operations (curl Examples)
+
+### Get All Tasks
+```bash
+curl http://localhost:3333/tasks
+```
+
+### Get Single Task
+```bash
+curl http://localhost:3333/tasks/1
+```
+
+### Create Task (POST)
+```bash
+# With title only (done defaults to false)
+curl -X POST http://localhost:3333/tasks \
+  -H "Content-Type: application/json" \
+  -d '{"title": "Buy groceries"}'
+
+# With title and done
+curl -X POST http://localhost:3333/tasks \
+  -H "Content-Type: application/json" \
+  -d '{"title": "Finish report", "done": true}'
+```
+
+### Update Task (PUT)
+```bash
+curl -X PUT http://localhost:3333/tasks/1 \
+  -H "Content-Type: application/json" \
+  -d '{"title": "Updated title", "done": true}'
+```
+
+### Delete Task
+```bash
+curl -X DELETE http://localhost:3333/tasks/1
+```
+
+### Error Cases
+```bash
+# 404 - Unknown ID
+curl -v http://localhost:3333/tasks/999
+
+# 400 - Missing required title (POST)
+curl -v -X POST http://localhost:3333/tasks \
+  -H "Content-Type: application/json" \
+  -d '{"done": true}'
+
+# 400 - Missing required title (PUT)
+curl -v -X PUT http://localhost:3333/tasks/1 \
+  -H "Content-Type: application/json" \
+  -d '{"done": false}'
+```
 
 ## Key Implementation Details
 
@@ -276,3 +354,7 @@ Server runs at `http://localhost:3333`
 3. **Promise Wrapping** - Handle sqlite3's callback pattern correctly
 4. **Dependency Injection** - Pass DB connection to repository
 5. **Error Handling** - Consistent try/catch in route handlers
+
+##Database ScreenShot 
+
+![alt text](image.png)

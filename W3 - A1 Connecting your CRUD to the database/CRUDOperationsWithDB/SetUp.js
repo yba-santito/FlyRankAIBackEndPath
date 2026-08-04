@@ -14,10 +14,18 @@ app.use('/docs', swaggerUI.serve, swaggerUI.setup(swaggerDocument));
 const db = new DatabaseConnection('./tasks.db');
 const taskRepo = new TaskRepository(db);
 
+// Global error handlers
+process.on('unhandledRejection', (reason, promise) => {
+    console.error('Unhandled Rejection at:', promise, 'reason:', reason);
+});
+
+process.on('uncaughtException', (err) => {
+    console.error('Uncaught Exception:', err);
+});
+
 async function init() {
     await db.connect();
     await db.initSchema();
-    await db.seed();
 
     app.get("/tasks", async (req, res) => {
         try {

@@ -20,15 +20,22 @@ class DatabaseConnection {
         });
     }
 
-    async initSchema() {
-        await this.run(`DROP TABLE IF EXISTS Tasks`);
-        await this.run(`
-            CREATE TABLE Tasks (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                title VARCHAR(100) NOT NULL,
-                done BOOLEAN DEFAULT 0
-            )
-        `);
+async initSchema() {
+        // Check if table exists first
+        const tableExists = await this.get(
+            "SELECT name FROM sqlite_master WHERE type='table' AND name='Tasks'"
+        );
+        
+        if (!tableExists) {
+            await this.run(`
+                CREATE TABLE Tasks (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    title VARCHAR(100) NOT NULL,
+                    done BOOLEAN DEFAULT 0
+                )
+            `);
+            await this.seed(); // Only seed on first creation
+        }
     }
 
     async seed() {
@@ -44,7 +51,8 @@ class DatabaseConnection {
             );
         }
     }
-        get run() {
+
+    get run() {
             return (sql, params = []) => new Promise((resolve, reject) => {
                 this.db.run(sql, params, function(err) {
                     if (err) reject(err);
