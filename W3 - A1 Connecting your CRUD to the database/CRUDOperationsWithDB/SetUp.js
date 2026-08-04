@@ -1,109 +1,85 @@
-// const express = require('express');
-// const app = express();
-// const port = 3000;
-// const swaggerUI = require('swagger-ui-express');
-// const swaggerDocument = require("./swagger.json");
+const express = require("express");
+const DatabaseConnection = require('./db/connection');
+const TaskRepository = require("./db/taskRepository");
 
+const app = express();
+const port = 3333;
 
-// app.use(express.json());
-// app.use('/docs', swaggerUI.serve, swaggerUI.setup(swaggerDocument));
+const swaggerUI = require('swagger-ui-express');
+const swaggerDocument = require("./swagger.json");
 
-// const taskLists = [{"id": 1, "title": "How did I get here", "done": true},
-//   {"id": 2, "title": "By always embracing change", "done": true},
-// {"id": 2, "title": "And never give up", "done": true},
-// ]
+app.use(express.json());
+app.use('/docs', swaggerUI.serve, swaggerUI.setup(swaggerDocument));
 
-// app.get("/", (req,res)=> {
-//   res.send({ "name": "Task API", "version": "1.0", "endpoints": ["/tasks"] }
-// )
-// })
+const db = new DatabaseConnection('./tasks.db');
+const taskRepo = new TaskRepository(db);
 
-// app.get("/health", (req,res)=> {
-//   res.send({"status": "ok"}
-// )
-// })
+async function init() {
+    await db.connect();
+    await db.initSchema();
+    await db.seed();
 
-// app.get("/tasks", (req,res)=> {
-//   res.send({success: true,
-//     count: taskLists.length,
-//     data: taskLists
-//   })}
-// )
+    app.get("/tasks", async (req, res) => {
+        try {
+            const tasks = await taskRepo.findAll();
+            res.json({ success: true, count: tasks.length, data: tasks });
+        } catch (err) {
+            res.status(500).json({ error: err.message });
+        }
+    });
 
-// app.get("/tasks/:id", (req,res)=> {
-//   const taskId = Number(req.params.id);
-//   const foundItem = taskLists.find(task => task.id === taskId);
+    app.get("/tasks/:id", async (req, res) => {
+        try {
+            const task = await taskRepo.findById(Number(req.params.id));
+            if (!task) return res.status(404).json({ error: "Task not found" });
+            res.json({ foundItem: task });
+        } catch (err) {
+            res.status(500).json({ error: err.message });
+        }
+    });
 
-//   if (!foundItem){
-//     return res.status(404).json({error: `Task ${taskId} not found`})
-//   }
-  
-//   res.send({foundItem})});
+    app.post("/tasks", async (req, res) => {
+        try {
+            const { title, done = false } = req.body;
+            if (!title) return res.status(400).json({ error: "Title is required" });
+            const task = await taskRepo.create(title, done);
+            res.status(201).json({ success: true, dataInserted: task });
+        } catch (err) {
+            res.status(500).json({ error: err.message });
+        }
+    });
 
-// app.get("/health", (req,res)=> {
-//   res.send({"status": "ok"}
-// )
-// });
+    app.put("/tasks/:id", async (req, res) => {
+        try {
+            const id = Number(req.params.id);
+            const { title, done } = req.body;
+            if (!title) return res.status(400).json({ error: "Title is required" });
+            const updated = await taskRepo.update(id, title, done);
+            if (!updated) return res.status(404).json({ error: "Task not found" });
+            const task = await taskRepo.findById(id);
+            res.json({ success: true, data: task });
+        } catch (err) {
+            res.status(500).json({ error: err.message });
+        }
+    });
 
-// app.post("/tasks", (req, res)=>{
-//   const {title, done} =req.body;
+    app.delete("/tasks/:id", async (req, res) => {
+        try {
+            const id = Number(req.params.id);
+            const deleted = await taskRepo.delete(id);
+            if (!deleted) return res.status(404).json({ error: "Task not found" });
+            res.status(204).send();
+        } catch (err) {
+            res.status(500).json({ error: err.message });
+        }
+    });
 
-//   const newId = taskLists.length > 0
-//                 ? Math.max(...taskLists.map(task => task.id)) + 1
-//                 : 1;
+    app.listen(port, () => {
+        console.log(`Example app listening on port ${port}`);
+    });
+}
 
-//   const newTask = {
-//     id :newId,
-//     title : title,
-
-//     done : done !== undefined ? done : false
-//   };
-
-//   taskLists.push(newTask);
-
-//   res.status(201).json({
-//     success: true,
-//     dataInserted: newTask
-//   });
-// });
-
-// app.put("/tasks/:id", (req, res)=>
-// {
-//   const taskId = Number(req.params.id);
-//   const foundItem = taskLists.findIndex(task => task.id === taskId);
-//   const updatedData = req.body;
-
-
-//   if (foundItem !== -1){
-//     taskLists[foundItem] = {id: taskId, ...updatedData};
-
-//     res.status(200).json({
-//       success: true,
-//       data: taskLists[foundItem]
-//     })
-//   }
-//   else{
-//     return res.status(404).json({error: "Unknown id"})
-//   }
-// })
-
-// app.delete("/tasks/:id", (req, res)=>
-// {
-//   const taskId = Number(req.params.id);
-//   const foundItem = taskLists.findIndex(task => task.id === taskId);
-
-//   if (foundItem !== -1){
-//     taskLists.splice(foundItem, 1);
-
-//     res.status(204).json({
-//       "No content": "Success, nothing to say",
-//     })
-//   }
-//   else{
-//     return res.status(404).json({error: "Unknown id"})
-//   }
-// })
-// app.listen(port, () => {
-//   console.log(`Example app listening on port ${port}`);
-// });
-
+init().catch(err => {
+    console.error("Failed to start server:", err);
+    process.exit(1);
+});
