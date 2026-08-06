@@ -1,360 +1,207 @@
-# W3 - Connecting CRUD to SQLite Database
+# Task CRUD API - Containerized with PostgreSQL
 
 ## Overview
 
-This project demonstrates how to connect an Express.js CRUD API to a SQLite database using SOLID principles. It evolves from an in-memory array implementation (W2) to a persistent database-backed solution.
+Express.js CRUD API with PostgreSQL, fully containerized via Docker Compose. This project demonstrates a production-ready stack with proper secret management, database persistence, and one-command deployment.
 
-## Why SQLite?
-
-SQLite was chosen for this lesson because:
-
-- **Zero Configuration** - No separate server process, runs in-process
-- **File-Based** - Entire database is a single file (`tasks.db`) - easy to backup, copy, inspect
-- **Lightweight** - ~600KB library, no dependencies
-- **SQL Standard** - Supports standard SQL, easy to migrate to PostgreSQL/MySQL later
-- **Perfect for Learning** - Focus on SQL and API design, not database administration
-- **Cross-Platform** - Works identically on Linux, macOS, Windows
-
-## Database File Location
-
-The database file is stored at:
-```
-W3 - A1 Connecting your CRUD to the database/tasks.db
-```
-
-This is a **single binary file** containing:
-- Schema (table definitions)
-- All data (rows)
-- Indexes
-
-You can copy, move, or backup this file like any other file.
-
-## How to Start the Project
+## One-Command Startup
 
 ```bash
-# 1. Navigate to project directory
-cd "W3 - A1 Connecting your CRUD to the database"
-
-# 2. Install dependencies (first time only)
-npm install
-
-# 3. Start the server
-node CRUDOperationsWithDB/SetUp.js
+cp .env.example .env
+docker compose up
 ```
 
-**Expected output:**
-```
-Example app listening on port 3333
-```
+- API: http://localhost:3000/tasks
+- Swagger UI: http://localhost:3000/docs
 
-**Verify it's running:**
+## Environment Variables
+
+See `.env.example` for required variables:
+
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `DATABASE_URL` | PostgreSQL connection string | `postgres://postgres:dev@db:5432/tasks` |
+| `PORT` | Server port | `3000` |
+
+**Security**: `.env` is git-ignored. Never commit real credentials.
+
+## API Endpoints
+
+| Method | Endpoint | Description | Success Code |
+|--------|----------|-------------|--------------|
+| GET | `/tasks` | List all tasks | 200 |
+| GET | `/tasks/:id` | Get single task | 200 / 404 |
+| POST | `/tasks` | Create task | 201 |
+| PUT | `/tasks/:id` | Update task | 200 / 404 |
+| DELETE | `/tasks/:id` | Delete task | 204 / 404 |
+| GET | `/docs` | Swagger UI documentation | 200 |
+
+### Request/Response Examples
+
+**Create a task:**
 ```bash
-# Test API
-curl http://localhost:3333/tasks
-
-# Open Swagger UI in browser
-open http://localhost:3333/docs
+curl -i -X POST http://localhost:3000/tasks \
+  -H "Content-Type: application/json" \
+  -d '{"title": "New task"}'
 ```
 
-## Database Viewer (CLI Screenshot)
+**Response:**
+```
+HTTP/1.1 201 Created
+X-Powered-By: Express
+Content-Type: application/json; charset=utf-8
+Content-Length: 65
 
-View the database directly using SQLite CLI:
+{"success":true,"dataInserted":{"id":6,"title":"New task","done":false}}
+```
+
+**Get all tasks:**
+```bash
+curl -i http://localhost:3000/tasks
+```
+
+**Response:**
+```
+HTTP/1.1 200 OK
+X-Powered-By: Express
+Content-Type: application/json; charset=utf-8
+Content-Length: 214
+
+{"success":true,"count":3,"data":[{"id":1,"title":"Life Of Santito","done":true},{"id":2,"title":"Is not a joke","done":true},{"id":3,"title":"Did the opp win","done":false}]}
+```
+
+**Update a task:**
+```bash
+curl -i -X PUT http://localhost:3000/tasks/1 \
+  -H "Content-Type: application/json" \
+  -d '{"title": "Updated title", "done": true}'
+```
+
+**Delete a task:**
+```bash
+curl -i -X DELETE http://localhost:3000/tasks/1
+```
+
+## Database Screenshot
 
 ```bash
-cd "W3 - A1 Connecting your CRUD to the database"
-sqlite3 tasks.db
+# View database directly
+docker exec -it a3containerizeyourstack-db-1 psql -U postgres -d tasks
 ```
-
-**Output:**
-```text
-SQLite version 3.45.0 2024-01-12 11:36:28
-Enter ".help" for usage hints.
-sqlite> .schema
-CREATE TABLE Tasks(
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    title VARCHAR(100) NOT NULL,
-    done BOOLEAN DEFAULT 0
-);
-sqlite> SELECT * FROM Tasks;
-1|Life Of Santito|1
-2|Is not a joke|1
-3|Did the opp win?|0
-sqlite> .quit
-```
-
-You can also use GUI tools like:
-- **DB Browser for SQLite** (free, cross-platform)
-- **SQLiteStudio** (free, cross-platform)
-- **VS Code Extension** - "SQLite" or "SQLite Viewer"
-
-## Example SQL Query Executed
-
-During development, this query was used to verify the auto-increment behavior:
 
 ```sql
-INSERT INTO Tasks (title, done) VALUES ('Test Auto Increment', 0);
-SELECT last_insert_rowid();
+tasks=# \dt
+         List of relations
+ Schema | Name  | Type  |  Owner
+--------+-------+-------+----------
+ public | tasks | table | postgres
+(1 row)
+
+tasks=# SELECT * FROM tasks;
+ id |       title       | done
+----+-------------------+------
+  1 | Life Of Santito   | t
+  2 | Is not a joke     | t
+  3 | Did the opp win   | f
+(3 rows)
 ```
 
-**Result:**
-```text
-last_insert_rowid()
--------------------
-4
+![Database screenshot showing tasks table with 3 seeded rows](docs/db-screenshot.png)
+
+## Verification - Clean Clone Test
+
+```bash
+# 1. Clone repository
+git clone https://github.com/yba-santito/FlyRankAIBackEndPath.git
+cd <repo-name>
+
+# 2. Configure environment
+cp .env.example .env
+
+# 3. Start entire stack
+docker compose up
+
+# 4. Verify API works
+curl http://localhost:3000/tasks
+# Returns 3 seeded tasks in under 5 minutes with no manual database setup
 ```
 
-This confirms `id` is auto-generated by SQLite (no manual ID management needed).
-
-## Architecture (SOLID Principles)
+## Architecture
 
 ```
-CRUDOperationsWithDB/
-├── SetUp.js              # HTTP Layer - Routes only (Single Responsibility)
-└── db/
-    ├── connection.js     # Database connection lifecycle (Single Responsibility)
-    └── taskRepository.js # Task queries only (Single Responsibility)
+┌─────────────────────────────────────────────┐
+│              Docker Host                    │
+│  ┌─────────────────────────────────────┐   │
+│  │          docker-compose.yml         │   │
+│  │  ┌──────────┐    ┌──────────────┐  │   │
+│  │  │   api    │───▶│      db      │  │   │
+│  │  │  :3000   │    │  postgres    │  │   │
+│  │  │  Node.js │    │  :5432       │  │   │
+│  │  └──────────┘    │  volume      │  │   │
+│  │                  │  taskdata    │  │   │
+│  │                  └──────────────┘  │   │
+│  └─────────────────────────────────────┘   │
+└─────────────────────────────────────────────┘
 ```
 
-| Principle | Implementation |
-|-----------|----------------|
-| **Single Responsibility** | Each file has one reason to change |
-| **Open/Closed** | Add new queries to Repository without touching routes |
-| **Liskov Substitution** | Repository can be swapped with mock for testing |
-| **Interface Segregation** | Repository exposes only task-specific methods |
-| **Dependency Inversion** | Routes depend on Repository abstraction, not concrete DB |
+- **api**: Node.js Express application (multi-stage Dockerfile, non-root user)
+- **db**: PostgreSQL 16 with named volume `taskdata` for persistence
+- **Network**: Internal compose network, `api` reaches `db` via service name
+- **Secrets**: `DATABASE_URL` from `.env` (git-ignored), `.env.example` committed
+
+## Development
+
+```bash
+# Local development (no Docker)
+npm install
+npm start
+# Runs on port 3333 with SQLite (legacy)
+
+# Container development
+docker compose up
+# Runs on port 3000 with PostgreSQL
+```
 
 ## Project Structure
 
 ```
-W3 - A1 Connecting your CRUD to the database/
+.
+├── Dockerfile                 # Multi-stage Node.js build
+├── compose.yaml              # Two-service stack (api + db)
+├── .env.example              # Environment template (committed)
+├── .gitignore                # Ignores .env, node_modules, tasks.db
 ├── package.json
-├── tasks.db                    # SQLite database file
-└── CRUDOperationsWithDB/
-    ├── SetUp.js               # Express server + routes
-    ├── swagger.json           # API documentation
-    └── db/
-        ├── connection.js      # DatabaseConnection class
-        └── taskRepository.js  # TaskRepository class
-```
-
-## Database Schema
-
-```sql
-CREATE TABLE Tasks (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    title VARCHAR(100) NOT NULL,
-    done BOOLEAN DEFAULT 0
-);
-```
-
-**Auto-increment**: IDs are generated automatically by SQLite.
-
-**Seeded Data** (on server start):
-| id | title | done |
-|---|---|---|
-| 1 | Life Of Santito | 1 |
-| 2 | Is not a joke | 1 |
-| 3 | Did the opp win? | 0 |
-
-## API Endpoints
-
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| GET | `/tasks` | Get all tasks |
-| GET | `/tasks/:id` | Get task by ID |
-| POST | `/tasks` | Create new task |
-| PUT | `/tasks/:id` | Update task |
-| DELETE | `/tasks/:id` | Delete task |
-| GET | `/docs` | Swagger UI documentation |
-
-### Request/Response Examples
-
-**GET /tasks**
-```json
-{
-  "success": true,
-  "count": 3,
-  "data": [
-    { "id": 1, "title": "Life Of Santito", "done": 1 },
-    { "id": 2, "title": "Is not a joke", "done": 1 },
-    { "id": 3, "title": "Did the opp win?", "done": 0 }
-  ]
-}
-```
-
-**POST /tasks**
-```bash
-curl -X POST http://localhost:3333/tasks \
-  -H "Content-Type: application/json" \
-  -d '{"title": "New task", "done": false}'
-```
-```json
-{
-  "success": true,
-  "dataInserted": { "id": 4, "title": "New task", "done": false }
-}
-```
-
-**PUT /tasks/1**
-```bash
-curl -X PUT http://localhost:3333/tasks/1 \
-  -H "Content-Type: application/json" \
-  -d '{"title": "Updated title", "done": true}'
-```
-```json
-{
-  "success": true,
-  "data": { "id": 1, "title": "Updated title", "done": 1 }
-}
-```
-
-**DELETE /tasks/1**
-```bash
-curl -X DELETE http://localhost:3333/tasks/1
-```
-Returns `204 No Content`
-
-## Installation & Running
-
-```bash
-# Navigate to project
-cd "W3 - A1 Connecting your CRUD to the database"
-
-# Install dependencies
-npm install
-
-# Start server
-npm start
-# or directly:
-node CRUDOperationsWithDB/SetUp.js
-```
-
-Server runs at `http://localhost:3333`
-- API: `http://localhost:3333/tasks`
-- Swagger Docs: `http://localhost:3333/docs`
-
-## Running Tests
-
-```bash
-# Run all tests
-npm test
-
-# Run tests with coverage
-npm test -- --coverage
-
-# Run tests in watch mode (for development)
-npm test -- --watch
-```
-
-**Test script in package.json:**
-```json
-{
-  "scripts": {
-    "test": "jest --testTimeout=10000",
-    "start": "node CRUDOperationsWithDB/SetUp.js"
-  }
-}
-```
-
-## CRUD Operations (curl Examples)
-
-### Get All Tasks
-```bash
-curl http://localhost:3333/tasks
-```
-
-### Get Single Task
-```bash
-curl http://localhost:3333/tasks/1
-```
-
-### Create Task (POST)
-```bash
-# With title only (done defaults to false)
-curl -X POST http://localhost:3333/tasks \
-  -H "Content-Type: application/json" \
-  -d '{"title": "Buy groceries"}'
-
-# With title and done
-curl -X POST http://localhost:3333/tasks \
-  -H "Content-Type: application/json" \
-  -d '{"title": "Finish report", "done": true}'
-```
-
-### Update Task (PUT)
-```bash
-curl -X PUT http://localhost:3333/tasks/1 \
-  -H "Content-Type: application/json" \
-  -d '{"title": "Updated title", "done": true}'
-```
-
-### Delete Task
-```bash
-curl -X DELETE http://localhost:3333/tasks/1
-```
-
-### Error Cases
-```bash
-# 404 - Unknown ID
-curl -v http://localhost:3333/tasks/999
-
-# 400 - Missing required title (POST)
-curl -v -X POST http://localhost:3333/tasks \
-  -H "Content-Type: application/json" \
-  -d '{"done": true}'
-
-# 400 - Missing required title (PUT)
-curl -v -X PUT http://localhost:3333/tasks/1 \
-  -H "Content-Type: application/json" \
-  -d '{"done": false}'
+├── CRUDOperationsWithDB/
+│   ├── SetUp.js             # Express server + routes
+│   ├── swagger.json         # OpenAPI 3.0 spec
+│   └── db/
+│       ├── connection.js    # pg.Pool wrapper
+│       └── taskRepository.js # Parameterized queries ($1, $2...)
+└── README.md
 ```
 
 ## Key Implementation Details
 
-### DatabaseConnection (`db/connection.js`)
-- Manages SQLite connection lifecycle
-- `connect()` - Opens connection, enables foreign keys
-- `initSchema()` - Drops/recreates table with AUTOINCREMENT
-- `seed()` - Inserts initial data
-- `run` getter - Custom promisified wrapper for `sqlite3.run()` to capture `lastID` and `changes`
-
-### TaskRepository (`db/taskRepository.js`)
-- Pure query logic, no HTTP concerns
-- Methods: `findAll()`, `findById()`, `create()`, `update()`, `delete()`
-- Uses parameterized queries (`?` placeholders) for security
-
-### SetUp.js (Routes)
-- Injects `DatabaseConnection` → `TaskRepository` (Dependency Injection)
-- All routes wrapped in try/catch for error handling
-- Validates required fields (title)
-- Returns consistent JSON responses
+- **Parameterized queries**: All SQL uses `$1, $2` placeholders (no string interpolation)
+- **Seed-once logic**: 3 tasks inserted only when `tasks` table is created
+- **Dependency injection**: `DatabaseConnection` → `TaskRepository` → Routes
+- **Error handling**: Consistent 400/404/500 responses with JSON error messages
+- **Health check**: `pg_isready` ensures db is ready before api starts
 
 ## Dependencies
 
 ```json
 {
   "express": "^4.18.2",
-  "sqlite3": "^5.1.6",
-  "swagger-ui-express": "^5.0.0"
+  "pg": "^8.11.0",
+  "swagger-ui-express": "^5.0.0",
+  "dotenv": "^16.3.0"
 }
 ```
 
-## Common Issues
-
-| Issue | Solution |
-|-------|----------|
-| `EADDRINUSE` port 3333 | `pkill -f "node SetUp.js"` |
-| Data resets on restart | `initSchema()` drops table - remove `DROP TABLE` for persistence |
-| POST returns `lastID` undefined | Fixed with custom `run` wrapper in connection.js |
-
-## Learning Outcomes
-
-1. **Separation of Concerns** - HTTP, queries, connection in separate files
-2. **Parameterized Queries** - Prevent SQL injection
-3. **Promise Wrapping** - Handle sqlite3's callback pattern correctly
-4. **Dependency Injection** - Pass DB connection to repository
-5. **Error Handling** - Consistent try/catch in route handlers
-
-##Database ScreenShot 
-
+## Screenshot of database
 ![alt text](image.png)
+
+## License
+
+ISC
