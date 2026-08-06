@@ -4,11 +4,13 @@ class TaskRepository{
     }
 
     async findAll(){
-        return this.db.all("Select * From Tasks");
+        const r = await this.db.query("Select * From tasks");
+        return r.rows;
     }
 
     async findById(id){
-        return this.db.get("Select * From Tasks Where id = ?", [id]);
+        const r = await this.db.query("SELECT * FROM tasks Where id = $1",[id]); 
+        return r.rows[0];
     }
 
     async update(id, title, done){

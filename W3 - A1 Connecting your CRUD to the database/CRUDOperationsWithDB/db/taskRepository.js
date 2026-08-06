@@ -8,7 +8,7 @@ class TaskRepository{
     }
 
     async findById(id){
-        return this.db.get("Select * From Tasks Where id = ?", [id]);
+        return this.db.query("Select * From tasks Where id = $1", [id]);
     }
 
     async update(id, title, done){

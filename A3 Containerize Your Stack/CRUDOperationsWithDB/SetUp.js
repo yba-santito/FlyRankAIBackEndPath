@@ -1,9 +1,10 @@
+require('dotenv').config();
 const express = require("express");
 const DatabaseConnection = require('./db/connection');
 const TaskRepository = require("./db/taskRepository");
 
 const app = express();
-const port = 3333;
+const port = process.env.PORT || 3000;
 
 const swaggerUI = require('swagger-ui-express');
 const swaggerDocument = require("./swagger.json");
@@ -11,7 +12,7 @@ const swaggerDocument = require("./swagger.json");
 app.use(express.json());
 app.use('/docs', swaggerUI.serve, swaggerUI.setup(swaggerDocument));
 
-const db = new DatabaseConnection('./tasks.db');
+const db = new DatabaseConnection();
 const taskRepo = new TaskRepository(db);
 
 // Global error handlers
